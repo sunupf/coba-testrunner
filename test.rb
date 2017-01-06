@@ -1,25 +1,23 @@
-require 'rubygems'
-require 'selenium-webdriver'
+require "selenium-webdriver"
 
-# Selenium::WebDriver::Firefox.path = "C:\\Program Files (x86)\\Mozilla Firefox\\firefox.exe"
-# profile = Selenium::WebDriver::Firefox::Profile.new
-driver = Selenium::WebDriver.for :firefox, :profile => "Driver"
+class Test
+  def initialize(testCase,driver)
+    @testCase =  testCase
+    @driver =  driver
+  end
+  def run
+    inputs = @testCase['testCases']
+    inputs.each do |key,input|
+      element = @driver.find_element :css => key
+      element.send_keys input
+    end
 
-start = Time.now
-puts "Current Time : " + start.inspect
-driver.get "http://google.com"
-
-loaded = Time.now
-puts "Current Time : " + loaded.inspect
-
-element = driver.find_element :name => "q"
-element.send_keys "Cheese!"
-element.submit
-
-puts "Page title is #{driver.title}"
-
-wait = Selenium::WebDriver::Wait.new(:timeout => 10)
-wait.until { driver.title.downcase.start_with? "cheese!" }
-
-puts "Page title is #{driver.title}"
-# driver.quit
+    buttonSubmit = @driver.find_element :css => ".uk-button-primary"
+    buttonSubmit.click
+    #
+    wait = Selenium::WebDriver::Wait.new(:timeout => 30)
+    wait.until { @driver.find_element :css => ".uk-alert" }
+    #
+    # puts "Page title is #{@driver.title}"
+  end
+end

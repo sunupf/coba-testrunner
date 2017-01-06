@@ -1,6 +1,6 @@
 require "thor"
 require "json"
-require "./lib/test"
+require "./lib/testRunner"
 
 class Coba < Thor
   desc "test configFile [browser]", "Testing based on configFile and/or specific Browser"
@@ -57,10 +57,14 @@ class Coba < Thor
       singleBrowserConfig = config;
       singleBrowserConfig["browsers"] = browser
 
+      # variable untuk menyimpan hasil
+      logs = Array.new
+
       # 5. Loop Test Cases hasil generate
       testCases.each_with_index do |testCase,testIndex|
         # 5. Create object Test
-          test = Test.new(singleBrowserConfig)
+          singleBrowserConfig['keyIndex'] = testIndex
+          test = TestRunner.new(singleBrowserConfig)
 
           # - init
             test.init()
@@ -68,7 +72,7 @@ class Coba < Thor
 
             # screenshot after init (if config set to true)
           # - start
-            test.start()
+            test.start(testCase)
             # - before Hook (if available)
               # Log Time
               # screenshot before and after test (if config set to true)
@@ -79,11 +83,24 @@ class Coba < Thor
               # Log Time
               # screenshot before and after test (if config set to true)
           # - stop
+            result = test.stop()
             # driver quit
+
+          # compose result
+          logs.push(result)
+      end
+
+      # 6. Ketika selesai atau throw error save log (JSON) ke dalam sebuah file dengan alamat cwd()+log+browserName
+      logPath = "#{Dir.pwd}/#{browser}"
+      if !Dir.exist? "#{logPath}/"
+        FileUtils::mkdir_p "#{logPath}/"
+      end
+
+      File.open("#{logPath}/#{browser}.json","w") do |f|
+        f.write(JSON.pretty_generate logs)
       end
     end
 
-    # 6. Ketika selesai atau throw error save log (JSON) ke dalam sebuah file dengan alamat cwd()+log+browserName
 
   end
 
