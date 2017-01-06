@@ -1,0 +1,32 @@
+{
+  "browsers":"firefox",
+  "before":"before.rb",
+  "after":"before.rb",
+  "scenario":"test.rb",
+  "customValidation":"validation.js",
+  "screenshot":true,
+  "screenshotPath":"./image",
+  "input":[
+    {
+      "type":"name",
+      "selector": "[name='name']",
+      "name":"name",
+      "validation":["required","min:4","max:22"]
+    },
+    {
+      "type":"email",
+      "selector": "[name='email']",
+      "name":"email",
+      "validation":["required","email","unique:users,email"]
+    },
+    {
+      "type":"password",
+      "selector": "[name='password']",
+      "name":"password",
+      "validation":["required","min:8"]
+    }
+  ],
+  "startingUrl":"http://todo.app/register",
+  "data":"testCases.json"
+
+}

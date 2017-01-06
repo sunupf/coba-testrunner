@@ -1,0 +1,106 @@
+[
+  {
+    "rules": {
+      "[name='name']": [
+        "required",
+        "min:4",
+        "max:22"
+      ],
+      "[name='email']": [
+        "required",
+        "email",
+        "unique:users,email"
+      ],
+      "[name='password']": [
+        "required",
+        "min:8"
+      ]
+    },
+    "testCases": {
+      "[name='name']": "c|-CN2C\":qZW2U\"l^",
+      "[name='email']": "c4t1inezo468p7i9ex@qdbhwbx.evjjv.qgh",
+      "[name='password']": "0'+F!F~A_M`>6:Hxox(LYDK@L\\x"
+    },
+    "messages": [
+      "Your account has been created and activation link already send to your email"
+    ]
+  },
+  {
+    "rules": {
+      "[name='name']": [
+        "required",
+        "min:4",
+        "max:22"
+      ],
+      "[name='email']": [
+        "required",
+        "email",
+        "unique:users,email"
+      ],
+      "[name='password']": [
+        "required",
+        "^min:8"
+      ]
+    },
+    "testCases": {
+      "[name='name']": "R%Ew,!eBO+\\DPvhYCa)Z",
+      "[name='email']": "ea6infyt3v7k@gvx.nm.bu",
+      "[name='password']": "v\"m!1h"
+    },
+    "messages": [
+      "The password must be at least 8 characters."
+    ]
+  },
+  {
+    "rules": {
+      "[name='name']": [
+        "required",
+        "min:4",
+        "max:22"
+      ],
+      "[name='email']": [
+        "required",
+        "email",
+        "unique:users,email"
+      ],
+      "[name='password']": [
+        "min:8",
+        "^required"
+      ]
+    },
+    "testCases": {
+      "[name='name']": "S9uK(yYo~Z)r$",
+      "[name='email']": "sxxbdx5wnty@cgaeeds.eim",
+      "[name='password']": ""
+    },
+    "messages": [
+      "The password field is required."
+    ]
+  },
+  {
+    "rules": {
+      "[name='name']": [
+        "required",
+        "min:4",
+        "max:22"
+      ],
+      "[name='email']": [
+        "required",
+        "email",
+        "unique:users,email"
+      ],
+      "[name='password']": [
+        "^required",
+        "^min:8"
+      ]
+    },
+    "testCases": {
+      "[name='name']": "hJN0X9wDYWY3!q_m",
+      "[name='email']": "hjcqwjjy4bv19dy@snmzdsqhs.dox",
+      "[name='password']": ""
+    },
+    "messages": [
+      "The password field is required."
+    ]
+  }
+]
