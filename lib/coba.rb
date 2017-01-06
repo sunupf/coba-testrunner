@@ -1,6 +1,6 @@
 require "thor"
 require "json"
-require "./lib/testRunner"
+require "./testRunner"
 
 class Coba < Thor
   desc "test configFile [browser]", "Testing based on configFile and/or specific Browser"
