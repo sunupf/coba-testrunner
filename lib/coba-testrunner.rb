@@ -8,6 +8,8 @@ class TestRunner
     @time = Hash.new
     @index = config['keyIndex']
     @testCase = ""
+    # @screenshotPath = "#{Dir.pwd}/log/#{@config['browsers']}/#{@config['screenshotPath']}/#{@index+1}"
+    @screenshotPath = "#{Dir.pwd}/log/#{@config['browsers']}/screenshot/#{@index+1}"
   end
   def init()
     start = Time.new
@@ -16,15 +18,18 @@ class TestRunner
     when "firefox"
       @driver = Selenium::WebDriver.for :firefox, :profile => "Driver"
     when "safari"
+      # opts = Selenium::WebDriver::Safari::Options.new
+      # opts.add_extension "#{Dir.pwd}/../selenium/SafariDriver.safariextz"
       @driver = Selenium::WebDriver.for :safari
     when "opera"
-      @driver = Selenium::WebDriver.for :opera
+      Selenium::WebDriver::Chrome.driver_path = "#{Dir.pwd}/../selenium/operadriver.exe"
+      @driver = Selenium::WebDriver.for :chrome
     when "chrome"
       @driver = Selenium::WebDriver.for :chrome
     when "ie"
       @driver = Selenium::WebDriver.for :ie
     when "phantomjs"
-
+      @driver = Selenium::WebDriver.for :phantomjs
     else
       puts "Browser you specified not supported yet"
     end
@@ -35,6 +40,10 @@ class TestRunner
   end
   def start(testCase=nil)
     @testCase = testCase
+
+    if(@config['overrideConfig'] === true)
+      @config = overrideConfig(@config,@testCase)
+    end
 
     beforeExecution
 
@@ -47,6 +56,7 @@ class TestRunner
   def stop
     @driver.quit
     @testCase['time'] = @time
+    puts "====================== Finish : Test Case Number #{@index+1}"
     return @testCase
   end
   def config
@@ -54,6 +64,10 @@ class TestRunner
   end
 
   private #Private method dibawah
+  def overrideConfig(config,testCases)
+    config['startingUrl'] = testCases['testCases']['startingUrl'];
+    return config;
+  end
   def logTime(index,start,finish)
     @time[index] = Hash.new
     @time[index]['start'] = start
@@ -61,27 +75,31 @@ class TestRunner
     @time[index]['time'] = finish - start
   end
   def loadUrl(url)
-    takeScreenshot("#{Dir.pwd}/#{@config['browsers']}/#{@index+1}",'loadUrl','start')
+    puts "- Load Url"
+    takeScreenshot(@screenshotPath,'loadUrl','start')
 
     start = Time.new
 
-    if url
+    if @config['before'] and File.exist?(@config['before']) and !url.nil?
       @driver.navigate.to url
+    elsif !url.nil?
+      @driver.get url
     end
 
     finish = Time.new
 
     logTime "load", start, finish
 
-    takeScreenshot("#{Dir.pwd}/#{@config['browsers']}/#{@index+1}",'loadUrl','finish')
+    takeScreenshot(@screenshotPath,'loadUrl','finish')
   end
   def mainTest(testCase)
-    takeScreenshot("#{Dir.pwd}/#{@config['browsers']}/#{@index+1}",'MainExecution','start')
+    puts "- Executing Main Test"
+    takeScreenshot(@screenshotPath,'MainExecution','start')
 
     start = Time.new
 
     if @config['scenario'] and File.exist?(@config['scenario'])
-      load @config['scenario'] #work LOL
+      load "#{Dir.pwd}/#{@config['scenario']}" #work LOL
       test = Test.new(testCase,@driver).run
       @testCase['assertion'] = test
     end
@@ -90,47 +108,52 @@ class TestRunner
 
     logTime "main", start, finish
 
-    takeScreenshot("#{Dir.pwd}/#{@config['browsers']}/#{@index+1}",'MainExecution','finish')
+    takeScreenshot(@screenshotPath,'MainExecution','finish')
   end
   def beforeExecution
-    takeScreenshot("#{Dir.pwd}/#{@config['browsers']}/#{@index+1}",'PreExecution','load')
-
+    puts "- Executing Pre Script"
+    takeScreenshot(@screenshotPath,'PreExecution','load')
     start = Time.new
 
     if @config['before'] and File.exist?(@config['before'])
-      load @config['scenario'] #work LOL
-      test = BeforeTest.new(@driver).run
+      load "#{Dir.pwd}/#{@config['before']}" #work LOL
+      @dri
+      test = BeforeTest.new(@testCase,@driver).run
     end
 
     finish = Time.new
 
     logTime "before", start, finish
 
-    takeScreenshot("#{Dir.pwd}/#{@config['browsers']}/#{@index+1}",'PreExecution','finish')
+    takeScreenshot(@screenshotPath,'PreExecution','finish')
   end
   def afterExecution
-    takeScreenshot("#{Dir.pwd}/#{@config['browsers']}/#{@index+1}",'AfterExecution','load')
+    puts "- Executing After Execution Script"
+    takeScreenshot(@screenshotPath,'AfterExecution','load')
 
     start = Time.new
 
     if @config['after'] and File.exist?(@config['after'])
-      load @config['scenario'] #work LOL
-      test = AfterTest.new(@driver).run
+      load "#{Dir.pwd}/#{@config['after']}"
+      test = AfterTest.new(@testCase,@driver).run
     end
 
     finish = Time.new
 
     logTime "after", start, finish
 
-    takeScreenshot("#{Dir.pwd}/#{@config['browsers']}/#{@index+1}",'AfterExecution','finish')
+    takeScreenshot(@screenshotPath,'AfterExecution','finish')
   end
   def takeScreenshot(folderPath,prefix=nil,sufix=nil)
     if @config['screenshot']
       if !Dir.exist? "#{folderPath}/"
         FileUtils::mkdir_p "#{folderPath}/"
       end
-      puts "#{folderPath}/#{prefix}.png"
-      @driver.save_screenshot("#{folderPath}/#{prefix}-#{sufix}.png")
+      # @driver.save_screenshot("#{folderPath}/#{prefix}-#{sufix}.png")
+      picture = @driver.screenshot_as :png
+      File.open("#{folderPath}/#{prefix}-#{sufix}.png","wb") do |f|
+        f.write(picture)
+      end
     end
   end
 end

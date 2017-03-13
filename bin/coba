@@ -1,6 +1,9 @@
+#!/usr/bin/env ruby
+
 require "thor"
 require "json"
-require "./testRunner"
+require "fileutils"
+require "coba-testrunner"
 
 class Coba < Thor
   desc "test configFile [browser]", "Testing based on configFile and/or specific Browser"
@@ -21,8 +24,8 @@ class Coba < Thor
     # error when not found
     # error when json not valid
 
-    if File.exist?(configFile)
-      file = File.read(configFile)
+    if File.exist? "#{Dir.pwd}/#{configFile}"
+      file = File.read("#{Dir.pwd}/#{configFile}")
     else
       raise "File #{configFile} doesn't exist"
     end
@@ -46,10 +49,15 @@ class Coba < Thor
     # String push ke array
     # Array loop
     arrayOfBrowser = Array.new
-    if config['browsers'].instance_of? String
-      arrayOfBrowser << config['browsers'];
+
+    if browser === nil
+      browser = config['browsers']
+    end
+
+    if browser.instance_of? String
+      arrayOfBrowser << browser
     else
-      arrayOfBrowser = config['browsers'];
+      arrayOfBrowser = browser
     end
 
     arrayOfBrowser.each_with_index do |browser,index|
@@ -91,13 +99,23 @@ class Coba < Thor
       end
 
       # 6. Ketika selesai atau throw error save log (JSON) ke dalam sebuah file dengan alamat cwd()+log+browserName
-      logPath = "#{Dir.pwd}/#{browser}"
+      # tapi sebelumnya harus di ambil dulu isi file sebelumnya
+      logPath = "#{Dir.pwd}/log/#{browser}"
       if !Dir.exist? "#{logPath}/"
         FileUtils::mkdir_p "#{logPath}/"
       end
 
+      preloadedData = Array.new
+      if File.exist?("#{logPath}/#{browser}.json")
+        logFile = File.read("#{logPath}/#{browser}.json")
+        preloadedData = JSON.parse(logFile)
+      end
+
+      # puts preloadedData
+      preloadedData.concat(logs)
+
       File.open("#{logPath}/#{browser}.json","w") do |f|
-        f.write(JSON.pretty_generate logs)
+        f.write(JSON.pretty_generate preloadedData)
       end
     end
 
@@ -105,7 +123,7 @@ class Coba < Thor
   end
 
 
-  desc "generate type", "Generate data for testing purpose"
+  desc "generate type", "[IN PROGRESS] Generate data for testing purpose"
   long_desc <<-LONGDESC
     coba generate will generate data for your test suite base on validation rule/something else :p
 
@@ -115,6 +133,18 @@ class Coba < Thor
   LONGDESC
   def generate(type)
     puts "Generate on #{type} data"
+  end
+
+  desc "init", "Prepare boilerplate file for testing "
+  long_desc <<-LONGDESC
+    coba init will generate skeleton file for your testing purpose
+
+    ex :\n
+    > $./coba init
+  LONGDESC
+  def init
+    dir = File.dirname(File.expand_path(__FILE__))
+    FileUtils.copy_entry dir+"/../lib/template/", Dir.pwd+"/"
   end
 end
 
