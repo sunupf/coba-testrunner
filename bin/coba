@@ -146,6 +146,46 @@ class Coba < Thor
     dir = File.dirname(File.expand_path(__FILE__))
     FileUtils.copy_entry dir+"/../lib/template/", Dir.pwd+"/"
   end
+
+  desc "split file chunk", "Split big testcase into some little file"
+  long_desc <<-LONGDESC
+    coba split will split big testcase file into several file so you can test it chunck by chunk
+    chunk is testcase length
+
+    ex :\n
+    > $./coba split 128
+  LONGDESC
+  def split(file, chunk)
+    puts "Spliting file"
+
+    if File.exist?(file)
+      testFile = File.read(file)
+    else
+      raise "File #{file} doesn't exist"
+    end
+
+    testCases = JSON.parse(testFile)
+    puts "Test Cases Count : #{testCases.length}"
+
+    count = testCases.length / chunk.to_f
+    count = count.ceil
+
+    chunkTestCases = []
+    testCases.each.with_index(1) do |testCase,testIndex|
+      chunkTestCases << testCase 
+      if (testIndex % chunk.to_i) === 0 || testIndex === testCases.length
+        filename = File.basename(file,".json")
+        number = (testIndex / chunk.to_f).ceil
+        puts "Compiling Test Cases : #{number} of #{count}"
+        File.open("#{Dir.pwd}/#{filename}-#{number.to_i}-of-#{count}.json","w") do |f|
+          f.write(JSON.pretty_generate chunkTestCases)
+        end
+        chunkTestCases = []
+      end
+    end
+    puts "Spliting file finished"
+  end
+
 end
 
 Coba.start(ARGV)

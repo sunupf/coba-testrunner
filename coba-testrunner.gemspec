@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = 'coba-testrunner'
-  s.version     = '0.0.3'
+  s.version     = '0.0.4'
   s.date        = '2017-01-06'
   s.summary     = "test runner for selenium-webdriver"
   s.description = "run test case agains some config"
