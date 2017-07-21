@@ -75,10 +75,27 @@ class Coba < Thor
           test = TestRunner.new(singleBrowserConfig)
 
           # - init
+          statusTest = 0
+          memoryUsage = Array.new
             test.init()
             # driver init
-
             # screenshot after init (if config set to true)
+          # RAM Calculation
+            # Create Thread, combine, and count average
+            t = Thread.new{
+                accumulator = 0
+                while statusTest != 1 do
+                    output = `tasklist /FO CSV | grep #{singleBrowserConfig['browsers']}.exe`
+                    puts output
+                    puts "========"
+                    csvData = CSV.parse(output)
+                    csvData.each do |data|
+                        accumulator = accumulator + data.last.sub(",","").sub("K","").to_i
+                    end
+                    memoryUsage << accumulator
+                    accumulator = 0
+                end
+            }
           # - start
             test.start(testCase)
             # - before Hook (if available)
@@ -91,7 +108,10 @@ class Coba < Thor
               # Log Time
               # screenshot before and after test (if config set to true)
           # - stop
+            statusTest = 1;
+            t.join
             result = test.stop()
+            result['memory'] = memoryUsage
             # driver quit
 
           # compose result

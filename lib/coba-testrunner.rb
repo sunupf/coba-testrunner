@@ -1,5 +1,6 @@
 require "selenium-webdriver"
 require 'fileutils'
+require "csv"
 
 class TestRunner
   def initialize(config)
@@ -26,8 +27,10 @@ class TestRunner
       @driver = Selenium::WebDriver.for :chrome
     when "chrome"
       @driver = Selenium::WebDriver.for :chrome
-    when "ie"
-      @driver = Selenium::WebDriver.for :ie
+    when "iexplore"
+      caps = Selenium::WebDriver::Remote::Capabilities.internet_explorer('ie.ensureCleanSession' => true, 'ie.browserCommandLineSwitches' => 'private')
+      @driver = Selenium::WebDriver.for(:internet_explorer, :desired_capabilities => caps)
+      # @driver = Selenium::WebDriver.for :ie
     when "phantomjs"
       @driver = Selenium::WebDriver.for :phantomjs
     else
@@ -117,7 +120,6 @@ class TestRunner
 
     if @config['before'] and File.exist?(@config['before'])
       load "#{Dir.pwd}/#{@config['before']}" #work LOL
-      @dri
       test = BeforeTest.new(@testCase,@driver).run
     end
 
