@@ -18,6 +18,7 @@ class Coba < Thor
     > $./coba test configFile.json firefox
   LONGDESC
   def test(configFile, browser=nil)
+    Thread.abort_on_exception=true
     puts "Testing based on #{configFile}"
 
     # 1. read configFile
@@ -63,40 +64,97 @@ class Coba < Thor
     arrayOfBrowser.each_with_index do |browser,index|
       # 4. Create config for single browser
       singleBrowserConfig = config;
+
+      threadLimit = 1
+      if(!config['threadLimit'].nil? || config['threadLimit'].to_i > 0 )
+        threadLimit = config.threadLimit
+      end
       singleBrowserConfig["browsers"] = browser
 
       # variable untuk menyimpan hasil
       logs = Array.new
+      th = []
+      memoryUsage = Array.new
 
       # 5. Loop Test Cases hasil generate
-      testCases.each_with_index do |testCase,testIndex|
-        # 5. Create object Test
-          singleBrowserConfig['keyIndex'] = testIndex
-          test = TestRunner.new(singleBrowserConfig)
+      testIndex = 0
+      begin
+        while testIndex < testCases.length 
+        # testCases.each_with_index do |testCase,testIndex|
+          statusTest = 0
+          # thMemory = Thread.new{
+          #     accumulator = 0
+          #     while statusTest != 1 do
+          #         output = `tasklist /FO CSV | grep #{singleBrowserConfig['browsers']}.exe`
+          #         puts output
+          #         puts "========"
+          #         csvData = CSV.parse(output)
+          #         csvData.each do |data|
+          #             accumulator = accumulator + data.last.sub(",","").sub("K","").to_i
+          #         end
+          #         memoryUsage << accumulator
+          #         accumulator = 0
+          #     end
+          # }
+          # puts "count : #{Thread.list.count}"
+          # puts "limit : #{threadLimit}"
+          if(Thread.list.count<threadLimit+1)
+            puts "count : #{Thread.list.count}"
+            puts "limit : #{threadLimit}"
+            # puts "Masuk"
+            th[testIndex] = Thread.new(testIndex){ |i|
+              testCase = testCases.shift  
+              # 5. Create object Test
+              singleBrowserConfig['keyIndex'] = i
+              test = TestRunner.new(singleBrowserConfig)
 
-          # - init
-            test.init()
-            # driver init
+              # - init
+                test.init()
+                # driver init
+                # screenshot after init (if config set to true)
+              # RAM Calculation
+                # Create Thread, combine, and count average
+                
+              # - start
+                test.start(testCase)
+                # - before Hook (if available)
+                  # Log Time
+                  # screenshot before and after test (if config set to true)
+                # - Execution
+                  # Log Time
+                  # screenshot before and after test (if config set to true)
+                # - after Hook (if available)
+                  # Log Time
+                  # screenshot before and after test (if config set to true)
+              # - stop
+                puts "coba stop"
+                result = test.stop()
+                # result['memory'] = memoryUsage
+                # driver quit
 
-            # screenshot after init (if config set to true)
-          # - start
-            test.start(testCase)
-            # - before Hook (if available)
-              # Log Time
-              # screenshot before and after test (if config set to true)
-            # - Execution
-              # Log Time
-              # screenshot before and after test (if config set to true)
-            # - after Hook (if available)
-              # Log Time
-              # screenshot before and after test (if config set to true)
-          # - stop
-            result = test.stop()
-            # driver quit
+              # compose result
+              logs.push(result)
+              testIndex = testIndex + 1
+              puts "#{i+1} Selesai -------------- "
+            }
+          else
+            # puts "gak masuk"
+          end
+        end
 
-          # compose result
-          logs.push(result)
+        th.each{|t|
+          if(!t.nil?)
+              t.join
+          end
+        }
+      
+      rescue Exception => e
+          puts "MESSAGE: #{e}"
       end
+
+      statusTest = 1;
+
+      # thMemory.join
 
       # 6. Ketika selesai atau throw error save log (JSON) ke dalam sebuah file dengan alamat cwd()+log+browserName
       # tapi sebelumnya harus di ambil dulu isi file sebelumnya
@@ -117,9 +175,11 @@ class Coba < Thor
       File.open("#{logPath}/#{browser}.json","w") do |f|
         f.write(JSON.pretty_generate preloadedData)
       end
-    end
 
-
+      # File.open("#{logPath}/#{browser}-memory.json","w") do |f|
+      #   f.write(JSON.pretty_generate memoryUsage)
+      # end
+    end # end of each index
   end
 
 
