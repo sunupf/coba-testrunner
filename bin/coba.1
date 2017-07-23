@@ -46,8 +46,6 @@ class Coba < Thor
     end
 
     testCases = JSON.parse(testFile)
-    # testCases = [0,1,2,3]
-
 
     # 3. get browser
     # isArray? isString?
@@ -58,6 +56,7 @@ class Coba < Thor
     if browser === nil
       browser = config['browsers']
     end
+
     if browser.instance_of? String
       arrayOfBrowser << browser
     else
@@ -67,62 +66,133 @@ class Coba < Thor
     arrayOfBrowser.each_with_index do |browser,index|
       # 4. Create config for single browser
       singleBrowserConfig = config;
-      singleBrowserConfig["browsers"] = browser
 
       threadLimit = 1
       if(!config['threadLimit'].nil? || config['threadLimit'].to_i > 0 )
         threadLimit = config['threadLimit']
       end
+      singleBrowserConfig["browsers"] = browser
 
+      # variable untuk menyimpan hasil
       logs = Hash.new
       logs['data'] = Array.new
       logs['time'] = Array.new
       logTime = Hash.new
-      th = Array.new
-      testIndex = 0
+      th = []
+      memoryUsage = Array.new
 
+      # 5. Loop Test Cases hasil generate
       logTime['start'] = Time.new
-      while testIndex < testCases.length 
-        if(Thread.list.count < threadLimit+1)
-          th[testIndex] = Thread.new(testIndex){ |index|
-            singleBrowserConfig['keyIndex'] = index
+      testIndex = 0
+      begin
+        while testIndex < testCases.length 
+        # testCases.each_with_index do |testCase,testIndex|
+          statusTest = 0
+          # thMemory = Thread.new{
+          #     accumulator = 0
+          #     while statusTest != 1 do
+          #         output = `tasklist /FO CSV | grep #{singleBrowserConfig['browsers']}.exe`
+          #         puts output
+          #         puts "========"
+          #         csvData = CSV.parse(output)
+          #         csvData.each do |data|
+          #             accumulator = accumulator + data.last.sub(",","").sub("K","").to_i
+          #         end
+          #         memoryUsage << accumulator
+          #         accumulator = 0
+          #     end
+          # }
+          puts "count : #{Thread.list.count}"
+          puts "limit : #{threadLimit}"
+          if(Thread.list.count<threadLimit+1)
+            # puts "Masuk"
+            th[testIndex] = Thread.new(testIndex){ |i|
+              testCase = testCases[i]  
+              # 5. Create object Test
+              singleBrowserConfig['keyIndex'] = i
+              test = TestRunner.new(singleBrowserConfig)
 
-            inputsTestCases = testCases[index]
+              # - init
+              test.init()
+                # driver init
+                # screenshot after init (if config set to true)
+              # RAM Calculation
+                # Create Thread, combine, and count average
+                
+              # - start
+              test.start(testCase)
+                # - before Hook (if available)
+                  # Log Time
+                  # screenshot before and after test (if config set to true)
+                # - Execution
+                  # Log Time
+                  # screenshot before and after test (if config set to true)
+                # - after Hook (if available)
+                  # Log Time
+                  # screenshot before and after test (if config set to true)
+              # - stop
+              result = test.stop()
+                # result['memory'] = memoryUsage
+                # driver quit
 
-            test = TestRunner.new(singleBrowserConfig)
-
-            # - init
-            test.init()
-              # driver init
-              # screenshot after init (if config set to true)
-            
-            # - start
-            test.start(inputsTestCases)
-              # - before Hook (if available)
-                # Log Time
-                # screenshot before and after test (if config set to true)
-              # - Execution
-                # Log Time
-                # screenshot before and after test (if config set to true)
-              # - after Hook (if available)
-                # Log Time
-                # screenshot before and after test (if config set to true)
-            # - stop
-            result = test.stop()
-          }
-          testIndex = testIndex+1
+              # compose result
+              logs['data'][i] = result
+              driver = Selenium::WebDriver.for :firefox, :profile => "Driver"
+              puts driver
+              driver.get "http://timeline.app"
+              sleep(10)
+              driver.quit
+              puts "#{i} - Selesai"
+            }
+            testIndex = testIndex + 1
+          else
+            # puts "gak masuk"
+          end
         end
-      end
 
-      th.each{|t|
+        th.each{|t|
           if(!t.nil?)
               t.join
           end
-      }
+        }
+        logTime['end'] = Time.new
+        logTime['time'] = logTime['end'] - logTime['start']
+      
+      rescue Exception => e
+          puts "MESSAGE: #{e}"
+      end
 
-      logTime['end'] = Time.new
-      logTime['time'] = logTime['end'] - logTime['start']
-    end
+      statusTest = 1;
+
+      # thMemory.join
+
+      # 6. Ketika selesai atau throw error save log (JSON) ke dalam sebuah file dengan alamat cwd()+log+browserName
+      # tapi sebelumnya harus di ambil dulu isi file sebelumnya
+      logPath = "#{Dir.pwd}/log/#{browser}"
+      if !Dir.exist? "#{logPath}/"
+        FileUtils::mkdir_p "#{logPath}/"
+      end
+
+      preloadedData = Hash.new
+      preloadedData['data'] = Array.new
+      preloadedData['time'] = Array.new
+      if File.exist?("#{logPath}/#{browser}.json")
+        logFile = File.read("#{logPath}/#{browser}.json")
+        preloadedData = JSON.parse(logFile)
+      end
+
+      # puts preloadedData
+      preloadedData['data'].concat(logs['data'])
+      preloadedData['time'] << logTime
+
+      File.open("#{logPath}/#{browser}.json","w") do |f|
+        f.write(JSON.pretty_generate preloadedData)
+      end
+
+      # File.open("#{logPath}/#{browser}-memory.json","w") do |f|
+      #   f.write(JSON.pretty_generate memoryUsage)
+      # end
+    end # end of each index
   end
 
 

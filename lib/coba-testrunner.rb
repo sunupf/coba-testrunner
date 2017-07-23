@@ -16,8 +16,10 @@ class TestRunner
     start = Time.new
 
     case @config['browsers']
-    when "firefox"
-      @driver = Selenium::WebDriver.for :firefox, :profile => "Driver"
+  when "firefox"
+      options = Selenium::WebDriver::Firefox::Options.new
+      options.profile = "Driver"
+      @driver = Selenium::WebDriver.for :firefox, options: options
     when "safari"
       # opts = Selenium::WebDriver::Safari::Options.new
       # opts.add_extension "#{Dir.pwd}/../selenium/SafariDriver.safariextz"
@@ -78,7 +80,7 @@ class TestRunner
     @time[index]['time'] = finish - start
   end
   def loadUrl(url)
-    puts "- Load Url"
+    puts "- Load Url - #{@index+1}"
     takeScreenshot(@screenshotPath,'loadUrl','start')
 
     start = Time.new
@@ -96,7 +98,7 @@ class TestRunner
     takeScreenshot(@screenshotPath,'loadUrl','finish')
   end
   def mainTest(testCase)
-    puts "- Executing Main Test"
+    puts "- Executing Main Test - #{@index+1}"
     takeScreenshot(@screenshotPath,'MainExecution','start')
 
     start = Time.new
@@ -114,7 +116,7 @@ class TestRunner
     takeScreenshot(@screenshotPath,'MainExecution','finish')
   end
   def beforeExecution
-    puts "- Executing Pre Script"
+    puts "- Executing Pre Script - #{@index+1}"
     takeScreenshot(@screenshotPath,'PreExecution','load')
     start = Time.new
 
@@ -130,7 +132,7 @@ class TestRunner
     takeScreenshot(@screenshotPath,'PreExecution','finish')
   end
   def afterExecution
-    puts "- Executing After Execution Script"
+    puts "- Executing After Execution Script - #{@index+1}"
     takeScreenshot(@screenshotPath,'AfterExecution','load')
 
     start = Time.new
