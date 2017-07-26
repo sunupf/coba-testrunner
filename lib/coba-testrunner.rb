@@ -30,7 +30,11 @@ class TestRunner
     when "chrome"
       @driver = Selenium::WebDriver.for :chrome
     when "iexplore"
-      caps = Selenium::WebDriver::Remote::Capabilities.internet_explorer('ie.ensureCleanSession' => true, 'ie.browserCommandLineSwitches' => 'private')
+      caps = Selenium::WebDriver::Remote::Capabilities.internet_explorer(
+        'ie.ensureCleanSession' => true,
+        'ie.forceCreateProcessApi' => true, 
+        'ie.browserCommandLineSwitches' => '-private'
+        )
       @driver = Selenium::WebDriver.for(:internet_explorer, :desired_capabilities => caps)
       # @driver = Selenium::WebDriver.for :ie
     when "phantomjs"

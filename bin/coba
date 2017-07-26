@@ -5,6 +5,7 @@ require "json"
 require "fileutils"
 require "coba-testrunner"
 require "selenium-webdriver"
+require "thread"
 # $DEBUG = true
 
 class Coba < Thor
@@ -79,42 +80,44 @@ class Coba < Thor
       logs['time'] = Array.new
       logTime = Hash.new
       th = Array.new
-      testIndex = 0
+
+      workQueue = Queue.new
+      testCases.each{|x| workQueue.push x }
 
       logTime['start'] = Time.new
-      while testIndex < testCases.length 
-        if(Thread.list.count < threadLimit+1)
-          th[testIndex] = Thread.new(testIndex){ |index|
-            singleBrowserConfig['keyIndex'] = index
 
-            inputsTestCases = testCases[index]
+      worker = (0..(threadLimit-1)).map do
+          Thread.new(){
+            until workQueue.empty?
+              singleBrowserConfig['keyIndex'] = testCases.length - workQueue.length
+              inputsTestCases = workQueue.pop(true)
 
-            test = TestRunner.new(singleBrowserConfig)
+              test = TestRunner.new(singleBrowserConfig)
 
-            # - init
-            test.init()
-              # driver init
-              # screenshot after init (if config set to true)
-            
-            # - start
-            test.start(inputsTestCases)
-              # - before Hook (if available)
-                # Log Time
-                # screenshot before and after test (if config set to true)
-              # - Execution
-                # Log Time
-                # screenshot before and after test (if config set to true)
-              # - after Hook (if available)
-                # Log Time
-                # screenshot before and after test (if config set to true)
-            # - stop
-            result = test.stop()
+              # - init
+              test.init()
+                # driver init
+                # screenshot after init (if config set to true)
+              
+              # - start
+              test.start(inputsTestCases)
+                # - before Hook (if available)
+                  # Log Time
+                  # screenshot before and after test (if config set to true)
+                # - Execution
+                  # Log Time
+                  # screenshot before and after test (if config set to true)
+                # - after Hook (if available)
+                  # Log Time
+                  # screenshot before and after test (if config set to true)
+              # - stop
+              result = test.stop()
+              logs['data'] << result
+            end
           }
-          testIndex = testIndex+1
-        end
       end
 
-      th.each{|t|
+      worker.each{|t|
           if(!t.nil?)
               t.join
           end
@@ -122,9 +125,30 @@ class Coba < Thor
 
       logTime['end'] = Time.new
       logTime['time'] = logTime['end'] - logTime['start']
-    end
-  end
+      # 6. Ketika selesai atau throw error save log (JSON) ke dalam sebuah file dengan alamat cwd()+log+browserName
+      # tapi sebelumnya harus di ambil dulu isi file sebelumnya
+      logPath = "#{Dir.pwd}/log/#{browser}"
+      if !Dir.exist? "#{logPath}/"
+        FileUtils::mkdir_p "#{logPath}/"
+      end
 
+      preloadedData = Hash.new
+      preloadedData['data'] = Array.new
+      preloadedData['time'] = Array.new
+      if File.exist?("#{logPath}/#{browser}.json")
+        logFile = File.read("#{logPath}/#{browser}.json")
+        preloadedData = JSON.parse(logFile)
+      end
+
+      # puts preloadedData
+      preloadedData['data'].concat(logs['data'])
+      preloadedData['time'] << logTime
+
+      File.open("#{logPath}/#{browser}.json","w") do |f|
+        f.write(JSON.pretty_generate preloadedData)
+      end
+    end #end of each with index
+  end #end of def
 
   desc "generate type", "[IN PROGRESS] Generate data for testing purpose"
   long_desc <<-LONGDESC
