@@ -7,19 +7,41 @@ class TestRunner
     @config = config
     @driver = ""
     @time = Hash.new
-    @index = config['keyIndex']
+    @index = 0
     @testCase = ""
     # @screenshotPath = "#{Dir.pwd}/log/#{@config['browsers']}/#{@config['screenshotPath']}/#{@index+1}"
+    @screenshotPath = ""
+  end
+  def index=(index)
+    @index = index
     @screenshotPath = "#{Dir.pwd}/log/#{@config['browsers']}/screenshot/#{@index+1}"
   end
-  def init()
+  def init(port , marionettePort = 0)
     start = Time.new
 
+    # Selenium::WebDriver.logger.level = :debug
     case @config['browsers']
-  when "firefox"
+    when "firefox"
+      profile = Selenium::WebDriver::Firefox::Profile.new
       options = Selenium::WebDriver::Firefox::Options.new
-      options.profile = "Driver"
-      @driver = Selenium::WebDriver.for :firefox, options: options
+      # options.add_argument("-private")
+      options.add_argument("--new-instance")
+      options.add_argument("--marionette-port=#{marionettePort}")
+      options.profile = profile
+      @driver = Selenium::WebDriver.for :firefox, options: options , :port => port
+    when "phantomjs"
+      @driver = Selenium::WebDriver.for :phantomjs, :port => port
+    when "chrome"
+      options = Selenium::WebDriver::Chrome::Options.new
+      options.add_argument("--incognito")
+      @driver = Selenium::WebDriver.for :chrome,  options: options, :port => port
+    when "iexplore"
+      caps = Selenium::WebDriver::Remote::Capabilities.internet_explorer(
+        'ie.ensureCleanSession' => true,
+        'ie.forceCreateProcessApi' => true, 
+        'ie.browserCommandLineSwitches' => '-private'
+        )
+      @driver = Selenium::WebDriver.for(:internet_explorer, :desired_capabilities => caps, :port => port)
     when "safari"
       # opts = Selenium::WebDriver::Safari::Options.new
       # opts.add_extension "#{Dir.pwd}/../selenium/SafariDriver.safariextz"
@@ -27,25 +49,19 @@ class TestRunner
     when "opera"
       Selenium::WebDriver::Chrome.driver_path = "#{Dir.pwd}/../selenium/operadriver.exe"
       @driver = Selenium::WebDriver.for :chrome
-    when "chrome"
-      @driver = Selenium::WebDriver.for :chrome
-    when "iexplore"
-      caps = Selenium::WebDriver::Remote::Capabilities.internet_explorer(
-        'ie.ensureCleanSession' => true,
-        'ie.forceCreateProcessApi' => true, 
-        'ie.browserCommandLineSwitches' => '-private'
-        )
-      @driver = Selenium::WebDriver.for(:internet_explorer, :desired_capabilities => caps)
       # @driver = Selenium::WebDriver.for :ie
-    when "phantomjs"
-      @driver = Selenium::WebDriver.for :phantomjs
     else
       puts "Browser you specified not supported yet"
     end
 
+
     finish = Time.new
 
     logTime "initialize", start, finish
+
+    max_width, max_height = @driver.execute_script("return [window.screen.availWidth, window.screen.availHeight];")
+    @driver.manage.window.move_to(0, 0)
+    @driver.manage.window.resize_to(max_width, max_height)
   end
   def start(testCase=nil)
     @testCase = testCase
@@ -63,10 +79,15 @@ class TestRunner
     afterExecution
   end
   def stop
-    @driver.quit
+    @driver.manage.delete_all_cookies
+    # @driver.quit
     @testCase['time'] = @time
-    puts "====================== Finish : Test Case Number #{@index+1}"
+    puts "====================== Clearing Cookies : Test Case Number #{@index+1}"
     return @testCase
+  end
+  def end
+    @driver.quit
+    puts "====================== Finish : Test Case Number #{@index+1}"
   end
   def config
     @config
@@ -109,8 +130,8 @@ class TestRunner
 
     if @config['scenario'] and File.exist?(@config['scenario'])
       load "#{Dir.pwd}/#{@config['scenario']}" #work LOL
-      test = Test.new(testCase,@driver).run
-      @testCase['assertion'] = test
+      mainTest = Test.new(testCase,@driver).run
+      @testCase['assertion'] = mainTest
     end
 
     finish = Time.new
@@ -126,7 +147,7 @@ class TestRunner
 
     if @config['before'] and File.exist?(@config['before'])
       load "#{Dir.pwd}/#{@config['before']}" #work LOL
-      test = BeforeTest.new(@testCase,@driver).run
+      beforeTest = BeforeTest.new(@testCase,@driver).run
     end
 
     finish = Time.new
@@ -143,7 +164,7 @@ class TestRunner
 
     if @config['after'] and File.exist?(@config['after'])
       load "#{Dir.pwd}/#{@config['after']}"
-      test = AfterTest.new(@testCase,@driver).run
+      afterTest = AfterTest.new(@testCase,@driver).run
     end
 
     finish = Time.new
@@ -153,7 +174,7 @@ class TestRunner
     takeScreenshot(@screenshotPath,'AfterExecution','finish')
   end
   def takeScreenshot(folderPath,prefix=nil,sufix=nil)
-    if @config['screenshot']
+    if !@config['screenshot'].nil?
       if !Dir.exist? "#{folderPath}/"
         FileUtils::mkdir_p "#{folderPath}/"
       end

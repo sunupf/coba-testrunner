@@ -21,6 +21,9 @@ class Coba < Thor
     > $./coba test configFile.json firefox
   LONGDESC
   def test(configFile, browser=nil)
+    port_range = (7400..7500).to_a
+    port_length = port_range.length - 1
+
     Thread.abort_on_exception=true
     puts "Testing based on #{configFile}"
 
@@ -65,6 +68,7 @@ class Coba < Thor
       arrayOfBrowser = browser
     end
 
+
     arrayOfBrowser.each_with_index do |browser,index|
       # 4. Create config for single browser
       singleBrowserConfig = config;
@@ -82,37 +86,101 @@ class Coba < Thor
       th = Array.new
 
       workQueue = Queue.new
-      testCases.each{|x| workQueue.push x }
+      testCases.each{|x| workQueue << x }
+      
+      portQueue = Queue.new
+      (0..(threadLimit*2-1)).each{|x| 
+        portQueue << port_range[rand(port_length)]
+      }
+      # puts portQueue.length
 
       logTime['start'] = Time.new
 
-      worker = (0..(threadLimit-1)).map do
-          Thread.new(){
+      memoryUsage = Array.new
+
+      semaphore = Mutex.new
+
+      statusTest = 0
+
+      thMemory = Thread.new{
+          accumulator = 0
+          while statusTest != 1 do
+              output = `tasklist /FO CSV | grep #{singleBrowserConfig['browsers']}.exe`
+              # puts output
+              # puts "========"
+              csvData = CSV.parse(output)
+              csvData.each do |data|
+                  accumulator = accumulator + data.last.sub(",","").sub("K","").to_i
+              end
+              if accumulator > 0
+                memoryUsage << accumulator
+                accumulator = 0
+              end
+          end
+      }
+
+      worker = (0..(threadLimit-1)).map do |workerIndex|
+
+          Thread.new(workerIndex){ |threadIndex|
+            test = TestRunner.new(singleBrowserConfig)
+            port = portQueue.pop(true)
+            
+            if browser == "firefox" 
+              marionettePort = portQueue.pop(true)
+            end
+            
+            # puts "Port used on thread #{threadIndex} : #{port}"
+            # puts "Marionette Port used on thread #{threadIndex} : #{marionettePort}"
+
+            if(config['alwaysInitiate'].nil? || config['alwaysInitiate'] != true  )
+              if browser == "firefox" 
+                test.init(port,marionettePort)
+              else
+                test.init(port)
+              end
+
+            end
             until workQueue.empty?
-              singleBrowserConfig['keyIndex'] = testCases.length - workQueue.length
-              inputsTestCases = workQueue.pop(true)
+              if(!config['alwaysInitiate'].nil? || config['alwaysInitiate'] == true  )
+                test.init(port)
+              end
 
-              test = TestRunner.new(singleBrowserConfig)
+              index = 0
+              semaphore.synchronize{
+                index = testCases.length - workQueue.length
+                test.index= index
+              }
 
-              # - init
-              test.init()
-                # driver init
-                # screenshot after init (if config set to true)
-              
-              # - start
-              test.start(inputsTestCases)
-                # - before Hook (if available)
-                  # Log Time
-                  # screenshot before and after test (if config set to true)
-                # - Execution
-                  # Log Time
-                  # screenshot before and after test (if config set to true)
-                # - after Hook (if available)
-                  # Log Time
-                  # screenshot before and after test (if config set to true)
-              # - stop
-              result = test.stop()
-              logs['data'] << result
+              begin
+                inputsTestCases = workQueue.pop(true)
+                # - init
+                  # driver init
+                  # screenshot after init (if config set to true)
+                
+                # - start
+                test.start(inputsTestCases)
+                  # - before Hook (if available)
+                    # Log Time
+                    # screenshot before and after test (if config set to true)
+                  # - Execution
+                    # Log Time
+                    # screenshot before and after test (if config set to true)
+                  # - after Hook (if available)
+                    # Log Time
+                    # screenshot before and after test (if config set to true)
+                # - stop
+                result = test.stop()
+                logs['data'] << result
+              rescue Exception => e
+                # puts "Thread index : #{threadIndex} - testCase : #{index}"
+                # raise e
+              end
+              if(!config['alwaysInitiate'].nil? || config['alwaysInitiate'] == "true"  )
+                test.end
+              end
+            end
+            if(config['alwaysInitiate'].nil? || config['alwaysInitiate'] != "true" )
+              test.end
             end
           }
       end
@@ -122,6 +190,9 @@ class Coba < Thor
               t.join
           end
       }
+
+      statusTest = 1
+      thMemory.join
 
       logTime['end'] = Time.new
       logTime['time'] = logTime['end'] - logTime['start']
@@ -135,6 +206,7 @@ class Coba < Thor
       preloadedData = Hash.new
       preloadedData['data'] = Array.new
       preloadedData['time'] = Array.new
+      preloadedData['memory'] = Array.new
       if File.exist?("#{logPath}/#{browser}.json")
         logFile = File.read("#{logPath}/#{browser}.json")
         preloadedData = JSON.parse(logFile)
@@ -143,6 +215,7 @@ class Coba < Thor
       # puts preloadedData
       preloadedData['data'].concat(logs['data'])
       preloadedData['time'] << logTime
+      preloadedData['memory'] << memoryUsage
 
       File.open("#{logPath}/#{browser}.json","w") do |f|
         f.write(JSON.pretty_generate preloadedData)
