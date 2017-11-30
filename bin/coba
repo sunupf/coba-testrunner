@@ -38,7 +38,6 @@ class Coba < Thor
     end
 
     config = JSON.parse(file)
-
     # 2. get test Cases
     # error when not found
     # error when json not valid
@@ -120,7 +119,6 @@ class Coba < Thor
       }
 
       worker = (0..(threadLimit-1)).map do |workerIndex|
-
           Thread.new(workerIndex){ |threadIndex|
             test = TestRunner.new(singleBrowserConfig)
             port = portQueue.pop(true)
@@ -171,9 +169,14 @@ class Coba < Thor
                 # - stop
                 result = test.stop()
                 logs['data'] << result
+              rescue ThreadError => e
+                puts e.message
               rescue Exception => e
-                # puts "Thread index : #{threadIndex} - testCase : #{index}"
-                # raise e
+                puts e.message
+                puts e.backtrace
+                test.stop()
+                workQueue.push inputsTestCases
+                # test.writeLog
               end
               if(!config['alwaysInitiate'].nil? || config['alwaysInitiate'] == "true"  )
                 test.end

@@ -20,6 +20,7 @@ class TestRunner
     start = Time.new
 
     # Selenium::WebDriver.logger.level = :debug
+    # Selenium::WebDriver.logger.level = :debug
     case @config['browsers']
     when "firefox"
       profile = Selenium::WebDriver::Firefox::Profile.new
@@ -63,6 +64,10 @@ class TestRunner
     @driver.manage.window.move_to(0, 0)
     @driver.manage.window.resize_to(max_width, max_height)
   end
+
+  def writeLog
+    Selenium::WebDriver.logger.output = 'selenium.log'  
+  end
   def start(testCase=nil)
     @testCase = testCase
 
@@ -79,7 +84,7 @@ class TestRunner
     afterExecution
   end
   def stop
-    @driver.manage.delete_all_cookies
+    # @driver.manage.delete_all_cookies
     # @driver.quit
     @testCase['time'] = @time
     puts "====================== Clearing Cookies : Test Case Number #{@index+1}"
